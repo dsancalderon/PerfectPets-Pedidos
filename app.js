@@ -95,9 +95,29 @@ function refresh() { renderOverview(); renderClients(); }
 $('#search').addEventListener('input', renderClients);
 $('#sort').addEventListener('change', renderClients);
 document.addEventListener('keydown', e => { if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { e.preventDefault(); $('#search').focus(); } });
+async function toggleClient(id) {
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (openClient === id) {
+    const panel = document.getElementById(`details-${id}`);
+    openClient = null;
+    const button = document.querySelector(`[data-client="${id}"]`);
+    button.setAttribute('aria-expanded', 'false');
+    if (!reduceMotion) {
+      const animation = panel.animate([{ height: `${panel.scrollHeight}px`, opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 240, easing: 'ease-in-out' });
+      await animation.finished.catch(() => {});
+    }
+    if (openClient === null) { renderClients(); document.querySelector(`[data-client="${id}"]`)?.focus(); }
+    return;
+  }
+  openClient = id;
+  renderClients();
+  const panel = document.getElementById(`details-${id}`);
+  if (!reduceMotion) panel.animate([{ height: '0px', opacity: 0 }, { height: `${panel.scrollHeight}px`, opacity: 1 }], { duration: 280, easing: 'ease-out' });
+  document.querySelector(`[data-client="${id}"]`)?.focus();
+}
 $('#clients').addEventListener('click', e => {
   const button = e.target.closest('button'); if (!button) return;
-  if (button.dataset.client) { openClient = openClient === button.dataset.client ? null : button.dataset.client; renderClients(); $(`[data-client="${button.dataset.client}"]`).focus(); }
+  if (button.dataset.client) toggleClient(button.dataset.client);
   if (button.dataset.add) openOrder(button.dataset.add);
   if (button.dataset.edit) { const o = orders.find(o => o.id === button.dataset.edit); openOrder(o.clientId, o); }
   if (button.dataset.delete) openDelete(button.dataset.delete);
@@ -110,7 +130,7 @@ function openOrder(clientId, existing) {
   trigger = document.activeElement;
   draft = existing ? structuredClone(existing) : { id: crypto.randomUUID(), clientId, date: today(), items: [], notes: '' };
   const c = CLIENTS.find(c => c.id === clientId);
-  $('#order-dialog').innerHTML = `<div class="modal-heading"><div><div class="eyebrow">UN NUEVO MOMENTO DE CUIDADO</div><h2 id="order-title">${existing ? 'Editar pedido' : 'Nuevo pedido'}<span>.</span></h2><p>Para <strong>${escapeHtml(c.name)}</strong></p></div><button class="icon-button" data-close aria-label="Cerrar pedido">${icon('close')}</button></div><form id="order-form"><div class="order-date-section"><label class="field" for="order-date">Fecha del pedido<input type="date" id="order-date" required max="${today()}" value="${draft.date}" aria-describedby="order-date-help"></label><p id="order-date-help">Selecciona la fecha de la compra, aunque registres el pedido hoy.</p></div><div class="order-layout"><section class="product-picker"><div class="section-heading"><h3>Elige los productos</h3><span>Precios profesionales · COP</span></div><div class="product-grid">${PRODUCTS.map(p => productHtml(p)).join('')}</div></section><aside class="order-summary"><h3>Tu pedido <span id="draft-count" class="count">0</span></h3><div id="draft-items"></div><label class="field notes-label">Notas <span>opcional</span><textarea id="order-notes" maxlength="500" rows="2" placeholder="Un detalle para recordar…">${escapeHtml(draft.notes)}</textarea></label><div class="grand-total"><span>Total del pedido<small>Pesos colombianos</small></span><strong id="draft-total">${money(0)}</strong></div><button class="button primary save-order" type="submit" id="save-order">${icon('check')} ${existing ? 'Guardar cambios' : 'Guardar pedido'}</button><p class="local-note">Guardado en este navegador.</p></aside></div></form>`;
+  $('#order-dialog').innerHTML = `<div class="modal-heading"><div><div class="eyebrow">UN NUEVO MOMENTO DE CUIDADO</div><h2 id="order-title">${existing ? 'Editar pedido' : 'Nuevo pedido'}<span>.</span></h2><p>Para <strong>${escapeHtml(c.name)}</strong></p></div><button class="icon-button" data-close aria-label="Cerrar pedido">${icon('close')}</button></div><form id="order-form"><div class="order-layout"><section class="product-picker"><div class="section-heading"><h3>Elige los productos</h3><span>Precios profesionales · COP</span></div><div class="product-grid">${PRODUCTS.map(p => productHtml(p)).join('')}</div></section><aside class="order-summary"><h3>Tu pedido <span id="draft-count" class="count">0</span></h3><div id="draft-items"></div><label class="field notes-label">Notas <span>opcional</span><textarea id="order-notes" maxlength="500" rows="2" placeholder="Un detalle para recordar…">${escapeHtml(draft.notes)}</textarea></label><div class="order-date-section"><label class="field" for="order-date">Fecha del pedido<input type="date" id="order-date" required max="${today()}" value="${draft.date}" aria-describedby="order-date-help"></label><p id="order-date-help">Selecciona la fecha de la compra, aunque registres el pedido hoy.</p></div><div class="grand-total"><span>Total del pedido<small>Pesos colombianos</small></span><strong id="draft-total">${money(0)}</strong></div><button class="button primary save-order" type="submit" id="save-order">${icon('check')} ${existing ? 'Guardar cambios' : 'Guardar pedido'}</button><p class="local-note">Guardado en este navegador.</p></aside></div></form>`;
   renderDraft(); $('#order-dialog').showModal();
   $('#order-form').addEventListener('submit', saveOrder);
   $('#order-date').addEventListener('input', e => draft.date = e.target.value);

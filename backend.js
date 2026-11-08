@@ -3,6 +3,24 @@ const backend = { active: false, url: '', key: '', accessToken: '', refreshToken
 window.backend = backend;
 const gate = document.querySelector('#backend-gate');
 const sessionKey = 'perfect-pets.supabase.session';
+const configKey = 'perfect-pets.supabase.config';
+
+function saveSession(data) {
+  backend.accessToken = data.access_token;
+  backend.refreshToken = data.refresh_token;
+  backend.expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+  localStorage.setItem(sessionKey, JSON.stringify({ accessToken: backend.accessToken, refreshToken: backend.refreshToken, expiresAt: backend.expiresAt }));
+}
+
+async function getConfig() {
+  const saved = JSON.parse(sessionStorage.getItem(configKey) || 'null');
+  if (saved?.url && saved?.key && saved.savedAt > Date.now() - 10 * 60 * 1000) return saved;
+  const response = await fetch('/api/config');
+  if (!response.ok) throw new Error('No se pudo leer la configuración.');
+  const config = await response.json();
+  if (config.url && config.key) sessionStorage.setItem(configKey, JSON.stringify({ ...config, savedAt: Date.now() }));
+  return config;
+}
 
 async function backendRequest(path, options = {}, retried = false) {
   const response = await fetch(`${backend.url}${path}`, {
@@ -18,9 +36,7 @@ async function backendRequest(path, options = {}, retried = false) {
     const data = await backendRequest('/auth/v1/token?grant_type=refresh_token', {
       method: 'POST', body: JSON.stringify({ refresh_token: backend.refreshToken }),
     }, true);
-    backend.accessToken = data.access_token;
-    backend.refreshToken = data.refresh_token;
-    localStorage.setItem(sessionKey, JSON.stringify({ accessToken: backend.accessToken, refreshToken: backend.refreshToken }));
+    saveSession(data);
     return backendRequest(path, options, true);
   }
   if (!response.ok) {
@@ -38,18 +54,18 @@ function showGate(message = '') {
     event.preventDefault();
     const button = event.currentTarget.querySelector('button');
     button.disabled = true;
+    button.textContent = 'Ingresando…';
     try {
       const data = await backendRequest('/auth/v1/token?grant_type=password', {
         method: 'POST',
         body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))),
       });
-      backend.accessToken = data.access_token;
-      backend.refreshToken = data.refresh_token;
-      localStorage.setItem(sessionKey, JSON.stringify({ accessToken: backend.accessToken, refreshToken: backend.refreshToken }));
+      saveSession(data);
+      gate.querySelector('#backend-error').textContent = 'Cargando clientes y pedidos…';
       await loadBackendData();
       gate.hidden = true;
     } catch (error) { gate.querySelector('#backend-error').textContent = error.message; }
-    finally { button.disabled = false; }
+    finally { button.disabled = false; button.textContent = 'Entrar'; }
   });
 }
 
@@ -88,11 +104,9 @@ backend.saveClient = async client => {
 
 (async () => {
   try {
-    const response = await fetch('/api/config');
-    if (!response.ok) throw new Error('No se pudo leer la configuración.');
-    const config = await response.json();
+    const config = await getConfig();
     if (!config.url || !config.key) {
-      if (['localhost', '127.0.0.1'].includes(location.hostname)) return;
+      if (['localhost', '127.0.0.1'].includes(location.hostname)) { gate.hidden = true; return; }
       throw new Error('Faltan SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY en Vercel.');
     }
     backend.url = config.url.replace(/\/$/, '');
@@ -101,15 +115,17 @@ backend.saveClient = async client => {
     const saved = JSON.parse(localStorage.getItem(sessionKey) || '{}');
     backend.accessToken = saved.accessToken || '';
     backend.refreshToken = saved.refreshToken || '';
+    backend.expiresAt = saved.expiresAt || 0;
     if (backend.refreshToken) {
       try {
-        const data = await backendRequest('/auth/v1/token?grant_type=refresh_token', {
-          method: 'POST', body: JSON.stringify({ refresh_token: backend.refreshToken }),
-        });
-        backend.accessToken = data.access_token;
-        backend.refreshToken = data.refresh_token;
-        localStorage.setItem(sessionKey, JSON.stringify({ accessToken: backend.accessToken, refreshToken: backend.refreshToken }));
+        if (backend.expiresAt <= Date.now() + 60000) {
+          const data = await backendRequest('/auth/v1/token?grant_type=refresh_token', {
+            method: 'POST', body: JSON.stringify({ refresh_token: backend.refreshToken }),
+          });
+          saveSession(data);
+        }
         await loadBackendData();
+        gate.hidden = true;
         return;
       } catch { localStorage.removeItem(sessionKey); backend.accessToken = ''; }
     }

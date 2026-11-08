@@ -1,7 +1,7 @@
 /* Visual refresh inspired by the supplied Perfect Pets reference. */
 :root{color:#15143e;--purple:#6845ac;--purple-dark:#563395;--blue:#009db9;--muted:#6f7291;--line:#e9eaf3;--soft:#f8f6fc}
 body{background:#fdfdfd;color:#15143e}
-.brand-header{height:280px;position:relative;isolation:isolate;background:#fff url('assets/hero-clean.png') center bottom / auto 100% no-repeat;border-bottom:0;overflow:hidden}
+.brand-header{height:280px;position:relative;isolation:isolate;background:#fff url('assets/hero-clean.webp') center bottom / auto 100% no-repeat;border-bottom:0;overflow:hidden}
 .hero-brand{display:flex;flex-direction:column;align-items:center;gap:22px;padding-top:2px;z-index:1}
 .brand-header .hero-brand img{width:265px;height:auto;mix-blend-mode:multiply}
 .hero-brand>p{font-size:10px;letter-spacing:2px;color:#777e9c;margin:0}

@@ -6,12 +6,19 @@ const assert = require('node:assert/strict');
   const page = await browser.newPage();
   const clients = [];
   const orders = [];
-  await page.route('**/api/config', route => route.fulfill({ json: { url: 'https://test.supabase.co', key: 'sb_publishable_test' } }));
+  let configRequests = 0;
+  let refreshRequests = 0;
+  await page.route('**/api/config', async route => {
+    configRequests++;
+    await new Promise(resolve => setTimeout(resolve, 700));
+    await route.fulfill({ json: { url: 'https://test.supabase.co', key: 'sb_publishable_test' } });
+  });
   await page.route('https://test.supabase.co/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     const headers = request.headers();
     if (url.pathname === '/auth/v1/token') {
+      if (url.searchParams.get('grant_type') === 'refresh_token') refreshRequests++;
       assert.equal(headers.apikey, 'sb_publishable_test');
       assert.equal(headers.authorization, undefined);
       return route.fulfill({ json: { access_token: 'test-jwt', refresh_token: 'test-refresh' } });
@@ -30,6 +37,7 @@ const assert = require('node:assert/strict');
     throw new Error(`Unexpected request ${request.url()}`);
   });
   await page.goto('http://127.0.0.1:4173');
+  assert.equal(await page.locator('#backend-gate').isVisible(), true);
   await page.locator('#backend-gate').waitFor({ state: 'visible' });
   await page.locator('#backend-login [name="email"]').fill('owner@example.com');
   await page.locator('#backend-login [name="password"]').fill('test-password');
@@ -44,6 +52,8 @@ const assert = require('node:assert/strict');
   assert.equal(orders[0].purchase_date, '2026-10-20');
   await page.reload();
   await page.locator('#backend-gate').waitFor({ state: 'hidden' });
+  assert.equal(configRequests, 1, 'The project config is reused on reload');
+  assert.equal(refreshRequests, 0, 'A valid session is reused on reload');
   await page.locator('[data-client="matius"]').click();
   assert.equal(await page.locator('.order').count(), 1);
   await page.locator('[data-delete]').click();

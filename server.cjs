@@ -6,8 +6,13 @@ const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=u
 http.createServer((req, res) => {
   let url;
   try { url = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400).end(); return; }
+  if (url === '/api/config') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ url: process.env.SUPABASE_URL || '', key: process.env.SUPABASE_PUBLISHABLE_KEY || '' }));
+    return;
+  }
   const file = path.resolve(root, '.' + (url === '/' ? '/index.html' : url));
   const relative = path.relative(root, file);
-  if (relative.startsWith('..') || path.isAbsolute(relative) || !(relative === 'index.html' || relative === 'styles.css' || relative === 'theme.css' || relative === 'app.js' || relative.startsWith('assets' + path.sep) || relative.startsWith('Tarjetas' + path.sep))) { res.writeHead(403).end(); return; }
+  if (relative.startsWith('..') || path.isAbsolute(relative) || !(relative === 'index.html' || relative === 'styles.css' || relative === 'theme.css' || relative === 'app.js' || relative === 'backend.js' || relative.startsWith('assets' + path.sep) || relative.startsWith('Tarjetas' + path.sep))) { res.writeHead(403).end(); return; }
   fs.readFile(file, (err, body) => { if (err) { res.writeHead(404).end(); return; } res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); res.end(body); });
 }).listen(4173, '127.0.0.1', () => console.log('Perfect Pets: http://localhost:4173'));

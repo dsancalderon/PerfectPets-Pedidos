@@ -145,12 +145,16 @@ $('#order-dialog').addEventListener('click', e => {
   for (const [key, delta] of [['increase', 1], ['decrease', -1]]) if (b.dataset[key] !== undefined) { const n = Number(b.dataset[key]); draft.items[n].quantity = Math.max(1, Math.min(999, draft.items[n].quantity + delta)); renderDraft(); $(`[data-${key}="${n}"]`)?.focus(); }
   if (b.dataset.remove !== undefined) { const n = Number(b.dataset.remove); draft.items.splice(n, 1); renderDraft(); $('#order-date').focus(); }
 });
-function saveOrder(e) {
+async function saveOrder(e) {
   e.preventDefault();
   draft.date = $('#order-date').value; draft.notes = $('#order-notes').value.trim();
   if (!validOrder(draft) || draft.date > today()) { toast('Revisa la fecha y los productos del pedido.'); return; }
   const existing = orders.some(o => o.id === draft.id);
-  if (!persist([...orders.filter(o => o.id !== draft.id), structuredClone(draft)])) return;
+  const next = [...orders.filter(o => o.id !== draft.id), structuredClone(draft)];
+  if (window.backend?.active) {
+    try { await window.backend.saveOrder(draft); orders = next; }
+    catch { toast('No se pudo guardar en Supabase. Revisa la conexión e inténtalo de nuevo.'); return; }
+  } else if (!persist(next)) return;
   openClient = draft.clientId;
   $('#order-dialog').close(); refresh(); $(`[data-add="${openClient}"]`)?.focus(); toast(existing ? 'Los cambios del pedido se guardaron.' : 'Pedido guardado. Su historia sigue creciendo.');
 }
@@ -158,7 +162,13 @@ function openDelete(id) {
   const o = orders.find(o => o.id === id);
   $('#delete-dialog').innerHTML = `<div class="delete-symbol">${icon('trash')}</div><h2 id="delete-title">¿Eliminar este pedido?</h2><p>Pedido del ${dateLabel(o.date)} por <strong>${money(total(o))}</strong>. Se quitará del historial de ${escapeHtml(CLIENTS.find(c => c.id === o.clientId).name)}.</p><div class="dialog-actions"><button class="button secondary" data-close>Cancelar</button><button class="button destructive" id="confirm-delete">Eliminar pedido</button></div>`;
   $('#delete-dialog').showModal();
-  $('#confirm-delete').onclick = () => { if (persist(orders.filter(item => item.id !== id))) { $('#delete-dialog').close(); refresh(); $(`[data-add="${o.clientId}"]`)?.focus(); toast('Pedido eliminado del historial.'); } };
+  $('#confirm-delete').onclick = async () => {
+    if (window.backend?.active) {
+      try { await window.backend.deleteOrder(id); orders = orders.filter(item => item.id !== id); }
+      catch { toast('No se pudo eliminar en Supabase. Revisa la conexión.'); return; }
+    } else if (!persist(orders.filter(item => item.id !== id))) return;
+    $('#delete-dialog').close(); refresh(); $(`[data-add="${o.clientId}"]`)?.focus(); toast('Pedido eliminado del historial.');
+  };
 }
 $('#catalog-button').onclick = () => {
   $('#catalog-dialog').innerHTML = `<div class="modal-heading"><div><div class="eyebrow">CUIDADO QUE HACE LA DIFERENCIA</div><h2 id="catalog-title">Nuestros productos<span>.</span></h2><p>Gold Cosmetic Groomers × Perfect Pets</p></div><button class="icon-button" data-close aria-label="Cerrar catálogo">${icon('close')}</button></div><div class="catalog-body"><div class="section-heading"><h3>La fórmula de un buen cuidado</h3><span>Tarifa profesional · COP</span></div><div class="catalog-grid">${PRODUCTS.map(p => productHtml(p, true)).join('')}</div><p class="catalog-note">Tamaños y valores tomados de la tarifa profesional suministrada. Fotos de referencia.</p></div>`;
@@ -200,7 +210,7 @@ $('#client-logo').addEventListener('change', async e => {
   } catch { if (version === logoVersion) clientError('No pudimos abrir esa imagen. Prueba con otro archivo.'); }
   finally { if (version === logoVersion) { logoPending = false; $('#save-client').disabled = false; } }
 });
-$('#client-form').addEventListener('submit', e => {
+$('#client-form').addEventListener('submit', async e => {
   e.preventDefault(); clientError('');
   if (logoPending) return;
   if (clientsBlocked) { clientError('No se pudo leer la lista de clientes guardada. No se sobrescribirá; revisa el almacenamiento del navegador.'); return; }
@@ -213,8 +223,13 @@ $('#client-form').addEventListener('submit', e => {
   if (CLIENTS.some(c => c.name.toLocaleLowerCase('es') === value('name').toLocaleLowerCase('es') && c.phone === phone)) { clientError('Ya existe un cliente con ese nombre y teléfono. Puedes encontrarlo en el buscador.'); return; }
   const client = { id: `client-${crypto.randomUUID()}`, name: value('name'), type: value('type') || 'Peluquería canina', phone, contact: value('contact'), address: value('address'), email: value('email'), social: value('social'), extra: value('extra'), logo: clientLogo };
   const next = [...customClients, client];
-  try { localStorage.setItem(CLIENT_STORAGE, JSON.stringify(next)); }
-  catch { clientError('No se pudo guardar el cliente. El almacenamiento puede estar lleno o bloqueado. Prueba con un logo más pequeño.'); return; }
+  if (window.backend?.active) {
+    try { await window.backend.saveClient(client); }
+    catch { clientError('No se pudo guardar en Supabase. Revisa la conexión e inténtalo de nuevo.'); return; }
+  } else {
+    try { localStorage.setItem(CLIENT_STORAGE, JSON.stringify(next)); }
+    catch { clientError('No se pudo guardar el cliente. El almacenamiento puede estar lleno o bloqueado. Prueba con un logo más pequeño.'); return; }
+  }
   customClients = next; CLIENTS.push(client); openClient = client.id;
   $('#search').value = ''; $('#client-dialog').close(); refresh();
   const card = $(`[data-client="${client.id}"]`); card.focus(); card.scrollIntoView({ block: 'center' });

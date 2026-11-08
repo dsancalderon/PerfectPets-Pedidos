@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#6040a4">
+  <meta name="description" content="Clientes y pedidos de Perfect Pets Latinoamérica.">
+  <title>Clientes · Perfect Pets</title>
+  <link rel="icon" href="assets/perfect-pets.png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theme.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="brand-header">
+    <p class="hero-note hero-note-left">Cuidado profesional<br>para vidas<br>más felices<span></span></p>
+    <div class="hero-brand"><img src="assets/perfect-pets.png" alt="Perfect Pets Latinoamérica" width="192" height="75"><p>MÁS QUE MASCOTAS, GRANDES HISTORIAS</p><span class="hero-underline"></span></div>
+    <p class="hero-note hero-note-right">Salud, bienestar<br>y confianza<br>en cada etapa<span></span></p>
+  </header>
+  <main>
+    <div class="directory-actions">
+      <button class="button secondary" id="catalog-button"><span data-icon="grid"></span> Ver productos <span data-icon="arrow"></span></button>
+    </div>
+    <section class="overview" aria-label="Resumen de clientes y pedidos" id="overview"></section>
+    <section class="directory" aria-label="Directorio de clientes">
+      <div class="toolbar"><div class="search"><span data-icon="search"></span><input id="search" type="search" placeholder="Buscar por nombre, teléfono o dirección…" aria-label="Buscar clientes"><kbd>/</kbd></div><label class="sort">Ordenar por <select id="sort"><option value="name">Nombre A–Z</option><option value="recent">Último pedido</option></select></label></div>
+      <div class="list-label"><div class="clients-heading"><h1><span data-icon="users"></span> Tus clientes <span id="client-count" class="count">5</span></h1><button class="button primary" id="add-client-button"><span data-icon="plus"></span> Agregar cliente</button></div><span>Una buena relación empieza por conocerlos.</span></div>
+      <div id="clients"></div>
+    </section>
+    <footer><span><span class="status-dot"></span> Tu espacio de clientes y pedidos</span><span>Perfect Pets <span class="footer-separator">/</span> Hecho para cuidar.</span></footer>
+  </main>
+  <dialog id="order-dialog" aria-labelledby="order-title"></dialog>
+  <dialog id="catalog-dialog" aria-labelledby="catalog-title"></dialog>
+  <dialog id="delete-dialog" class="small-dialog" aria-labelledby="delete-title"></dialog>
+  <dialog id="client-dialog" aria-labelledby="client-title">
+    <div class="modal-heading"><div><div class="eyebrow">UNA NUEVA HISTORIA DE CUIDADO</div><h2 id="client-title">Agregar cliente<span>.</span></h2><p>Los campos con * son obligatorios.</p></div><button class="icon-button" data-close aria-label="Cerrar formulario de cliente"><span data-icon="close"></span></button></div>
+    <form id="client-form">
+      <div class="client-form-body">
+        <div class="logo-upload"><div id="client-logo-preview" aria-label="Vista previa del logo"><span data-icon="users"></span></div><div><label class="field" for="client-logo">Logo de la peluquería <span>opcional</span></label><input id="client-logo" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="logo-help"><p id="logo-help">PNG, JPG o WebP · Máximo 2 MB. Sin logo, usaremos sus iniciales.</p><button type="button" class="text-button" id="remove-client-logo" hidden>Quitar imagen</button></div></div>
+        <div class="client-fields">
+          <label class="field full-field">Nombre de la peluquería *<input id="client-name" name="name" required maxlength="100" autocomplete="organization" placeholder="Ej. Huellitas Spa"></label>
+          <label class="field full-field">Tipo de negocio<input name="type" maxlength="100" placeholder="Ej. Peluquería canina y felina"></label>
+          <label class="field">Celular / WhatsApp *<input name="phone" type="tel" required inputmode="tel" maxlength="25" autocomplete="tel-national" placeholder="Ej. 300 123 4567" aria-describedby="phone-help"><small id="phone-help">Número colombiano de 10 dígitos.</small></label>
+          <label class="field">Persona de contacto<input name="contact" maxlength="100" autocomplete="name" placeholder="Nombre del contacto"></label>
+          <label class="field full-field">Dirección<input name="address" maxlength="180" autocomplete="street-address" placeholder="Calle, número, local y barrio"></label>
+          <label class="field">Correo electrónico<input name="email" type="email" maxlength="150" autocomplete="email" placeholder="correo@ejemplo.com"></label>
+          <label class="field">Instagram / redes<input name="social" maxlength="100" placeholder="@nombrepeluqueria"></label>
+          <label class="field full-field">Información adicional<textarea name="extra" rows="2" maxlength="500" placeholder="Sedes, horarios o detalles para recordar…"></textarea></label>
+        </div>
+        <p id="client-form-error" class="form-error" role="alert" hidden></p>
+      </div>
+      <div class="client-form-actions"><button type="button" class="button secondary" data-close>Cancelar</button><button type="submit" class="button primary" id="save-client"><span data-icon="check"></span> Guardar cliente</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
